@@ -10,6 +10,12 @@ function testDRBG($drbg, $testFileHome, $testFile) {
     
     // Debug
     //echo 'Test file is at: ', $testFileHome . $testFile, "\n";
+    
+    $handle = fopen($testFileHome . $testFile, 'rb');
+    
+    while (true) {
+        
+    }
 }
 
 // Test file home

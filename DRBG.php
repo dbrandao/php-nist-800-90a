@@ -10,7 +10,7 @@ class DRBG {
     
     private $algo;
     
-    function __construct($algo) {
+    public function __construct($algo) {
         if ($algo == self::ALGO_HMAC) {
             $this->algo = self::ALGO_HMAC;
         } else if ($algo == self::ALGO_HASH) {
