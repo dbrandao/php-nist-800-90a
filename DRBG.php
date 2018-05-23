@@ -4,7 +4,9 @@ abstract class DRBG {
 
     const
         MAX_SUPPORTED_STRENGTH = 256,
-        MAX_PERSONALIZATION_STR_LEN = 256
+        MAX_PERSONALIZATION_STR_LEN = 256,
+        MAX_ADDITIONAL_INPUT_LEN_BASE = 2,
+        MAX_ADDITIONAL_INPUT_LEN_EXP = 35
     ;
     
     protected $strength;
@@ -24,7 +26,9 @@ abstract class DRBG {
     
     abstract protected function instantiateAlgorithm($entropy, $nonce, $personalizationString, $strength);
     
-    protected function instantiate($requestedStrength, $personalizationString) {
+    abstract protected function reseedAlgorithm($entropy, $additionalInput);
+    
+    private function instantiate($requestedStrength, $personalizationString) {
     
         try {
             if ($requestedStrength > self::MAX_SUPPORTED_STRENGTH) {
@@ -51,7 +55,24 @@ abstract class DRBG {
 
             $nonce = self::__getEntropyInput($this->strength / 2);
             
-            //TODO call to instantiateAlgorithm
+            $this->instantiateAlgorithm($entropy, $nonce, $personalizationString, $this->strength);
+            
+        } catch (Exception $e) {
+            echo 'Caught exception: ', $e->getMessage(), "\n";
+        }
+    }
+    
+    public function reseed($additionalInput) {
+
+        try {
+        
+            if (strlen($additionalInput) * 8 > pow(self::MAX_ADDITIONAL_INPUT_LEN_BASE, self::MAX_ADDITIONAL_INPUT_LEN_EXP)) {
+                throw new Exception('Addidional input exceeds maximum length.');
+            }
+            
+            $entropy = self::__getEntropyInput($this->strength);
+            
+            $this->reseedAlgorithm($entropy, $additionalInput);
             
         } catch (Exception $e) {
             echo 'Caught exception: ', $e->getMessage(), "\n";
@@ -84,6 +105,10 @@ class HMAC_DRBG extends DRBG {
         $this->V = self::INIT_V;
         $this->update($seed);
         $this->reseedCounter = 1;
+    }
+    
+    protected function reseedAlgorithm($entropy, $additionalInput) {
+        
     }
     
     private function update($providedData) {
