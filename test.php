@@ -2,7 +2,7 @@
 
 require_once 'DRBG.php';
 
-function testDRBG($drbg, $testFileHome, $testFile) {
+function testHmacDrbg($drbg, $testFileHome, $testFile) {
 
     if (substr($testFileHome, -1) != '/') {
         $testFileHome = $testFileHome . '/';
@@ -29,27 +29,21 @@ $testFileHome = $argv[1];
 
 // Test files
 $hmacTestFile = 'HMAC_DRBG.rsp';
-//$hashTestFile = 'HASH_DRBG.rsp';
-//$ctrTestFile = 'CTR_DRBG.rsp';
 
-// Test __getEntropy(...)
-//$entropy = bin2hex(DRBG::__getEntropy(16));
-//echo 'Entropy: 0x', $entropy, "\n"; // OK, it works.
+// Test __getEntropyInput
+//$entropy = bin2hex(DRBG::__getEntropyInput(16));
+//echo 'Entropy: ', $entropy, "\n"; // OK, it works.
 
-// DRBG instances
+// DRBG instantiation
 try {
     // Test exception handling
-    //$hmacDrbg = new DRBG(5); // OK, it works.
+    //$hmacDrbg = new HMAC_DRBG(1024, ''); // OK, it works.
     
-    // Instantiate DRBG objects
-    $hmacDrbg = new DRBG(DRBG::ALGO_HMAC);
-    //$hashDrbg = new DRBG(DRBG::ALGO_HASH);
-    //$ctrDrbg = new DRBG(DRBG::ALGO_CTR);
+    // Instantiate HMAC_DRBG object
+    $hmacDrbg = new HMAC_DRBG(256, '');
     
-    // Test DRBG instances
-    testDRBG($hmacDrbg, $testFileHome, $hmacTestFile);
-    //testDRBG($hashDrbg, $testFileHome, $hashTestFile);
-    //testDRBG($ctrDrbg, $testFileHome, $ctrTestFile);
+    // Test HMAC_DRBG instance
+    testHmacDrbg($hmacDrbg, $testFileHome, $hmacTestFile);
 
 } catch (Exception $e) {
     echo 'Caught exception: ', $e->getMessage(), "\n";
