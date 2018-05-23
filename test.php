@@ -13,8 +13,14 @@ function testDRBG($drbg, $testFileHome, $testFile) {
     
     $handle = fopen($testFileHome . $testFile, 'rb');
     
-    while (true) {
+    while ( ($line = fgets($handle, 4096)) !== false) {
         
+        // Debug
+        // echo $line; // OK, it works.
+    }
+    
+    if (!feof($handle)) {
+        throw new Exception('Failed to parse test file.');
     }
 }
 
