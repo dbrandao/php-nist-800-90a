@@ -4,12 +4,13 @@ abstract class DRBG {
 
     const
         MAX_SUPPORTED_STRENGTH = 256,
-        MAX_PERSONALIZATION_STR_LEN = 256,
-        MAX_ADDITIONAL_INPUT_LEN_BASE = 2,
-        MAX_ADDITIONAL_INPUT_LEN_EXP = 35
+        MAX_2_BASE = 2,
+        MAX_35_EXP = 35,
+        MAX_19_EXP = 19
     ;
     
     protected $strength;
+    protected $reseedRequired;
     
     public static function __getEntropyInput($len) {
         $entropy = openssl_random_pseudo_bytes($len, $strong);
@@ -28,6 +29,10 @@ abstract class DRBG {
     
     abstract protected function reseedAlgorithm($entropy, $additionalInput);
     
+    abstract protected function generateAlgorithm($requestedNumberOfBits, $additionalInput, &$reseedRequired);
+    
+    abstract protected function uninstantiateAlgorithm();
+    
     private function instantiate($requestedStrength, $personalizationString) {
     
         try {
@@ -37,7 +42,7 @@ abstract class DRBG {
             
             // PR is always used
 
-            if (strlen($personalizationString) * 8 > self::MAX_PERSONALIZATION_STR_LEN) {
+            if (strlen($personalizationString) * 8 > pow(self::MAX_2_BASE, self::MAX_35_EXP)) {
                 throw new Exception('Personalization string exceeds maximum length.');
             }
             
@@ -62,11 +67,16 @@ abstract class DRBG {
         }
     }
     
+    private function uninstantiate() {
+        $this->strength = NULL;
+        $this->reseedRequired = NULL;
+    }
+    
     public function reseed($additionalInput) {
 
         try {
         
-            if (strlen($additionalInput) * 8 > pow(self::MAX_ADDITIONAL_INPUT_LEN_BASE, self::MAX_ADDITIONAL_INPUT_LEN_EXP)) {
+            if (strlen($additionalInput) * 8 > pow(self::MAX_2_BASE, self::MAX_35_EXP)) {
                 throw new Exception('Addidional input exceeds maximum length.');
             }
             
@@ -77,6 +87,30 @@ abstract class DRBG {
         } catch (Exception $e) {
             echo 'Caught exception: ', $e->getMessage(), "\n";
         }
+    }
+    
+    public function generate($requestedNumberOfBits, $strength, $additionalInput) {
+        if ($requestedNumberOfBits > pow(self::MAX_2_BASE, self::MAX_19_EXP)) {
+            throw new Exception('Requested number of bits exceeds maximum supported.');
+        }
+        
+        if ($requestedNumberOfBits > $this->strength) {
+            throw new Exception('Requested strength exceeds instance strength.');
+        }
+        
+        if (strlen($additionalInput) * 8 > pow(self::MAX_2_BASE, self::MAX_35_EXP)) {
+            throw new Exception('Addidional input exceeds maximum length.');
+        }
+        
+        $output = generateAlgorithm($requestedNumberOfBits, $additionalInput, $reseedRequired);
+        
+        if ($reseedRequired) {
+            $this->uninstantiate();
+            $this->uninstantiateAlgorithm();
+        }
+        
+        return $output;
+        
     }
 
 }
@@ -92,7 +126,10 @@ class HMAC_DRBG extends DRBG {
         INIT_K = "\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01" .
                 "\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01" .
                 "\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01" .
-                "\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01"
+                "\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01",
+                
+        MAX_GEN_BEFORE_RESEED = 10000,
+        RESEED_REQUIRED = NULL
     ;
 
     private $V; // secret, output
@@ -107,8 +144,42 @@ class HMAC_DRBG extends DRBG {
         $this->reseedCounter = 1;
     }
     
-    protected function reseedAlgorithm($entropy, $additionalInput) {
+    protected function uninstantiateAlgorithm() {
+        $this->V = NULL;
+        $this->K = NULL;
+        $this->reseedCounter = NULL;
+    }
+    
+    protected function generateAlgorithm($requestedNumberOfBits, $additionalInput, &$reseedRequired) {
+        if ($reseedCounter > self::MAX_GEN_BEFORE_RESEED) {
+            $reseedRequired = true;
+            return self::RESEED_REQUIRED;
+        }
         
+        if ($additionalInput != '') {
+            $this->update(additionalInput);
+        }
+        
+        $temp = '';
+        
+        while (strlen($temp) < $requestedNumberOfBits / 8) {
+            $this->V = hash_hmac('sha256', $this->V, $this->K);
+            $temp = $temp . $this->V;
+        }
+        
+        $output = substr($temp, 0, $requestedNumberOfBits / 8);
+        
+        $this->update($additionalInput);
+        
+        $this->reseedCounter = $this->reseedCounter + 1;
+        
+        return $output;
+    }
+    
+    protected function reseedAlgorithm($entropy, $additionalInput) {
+        $seed = $entropy . $additionalInput;
+        $this->K = $this->update($seed);
+        $reseedCounter = 1;
     }
     
     private function update($providedData) {
