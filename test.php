@@ -42,6 +42,9 @@ try {
     // Instantiate HMAC_DRBG object
     $hmacDrbg = new HMAC_DRBG(256, '');
     
+    //
+    echo $hmacDrbg->generate(256, 256, 'nist 800-90a') . "\n";
+    
     // Test HMAC_DRBG instance
     testHmacDrbg($hmacDrbg, $testFileHome, $hmacTestFile);
 

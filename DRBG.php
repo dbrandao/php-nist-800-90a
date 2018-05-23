@@ -102,7 +102,7 @@ abstract class DRBG {
             throw new Exception('Addidional input exceeds maximum length.');
         }
         
-        $output = generateAlgorithm($requestedNumberOfBits, $additionalInput, $reseedRequired);
+        $output = $this->generateAlgorithm($requestedNumberOfBits, $additionalInput, $reseedRequired);
         
         if ($reseedRequired) {
             $this->uninstantiate();
@@ -151,13 +151,13 @@ class HMAC_DRBG extends DRBG {
     }
     
     protected function generateAlgorithm($requestedNumberOfBits, $additionalInput, &$reseedRequired) {
-        if ($reseedCounter > self::MAX_GEN_BEFORE_RESEED) {
-            $reseedRequired = true;
+        if ($this->reseedCounter > self::MAX_GEN_BEFORE_RESEED) {
+            $this->reseedRequired = true;
             return self::RESEED_REQUIRED;
         }
         
         if ($additionalInput != '') {
-            $this->update(additionalInput);
+            $this->update($additionalInput);
         }
         
         $temp = '';
