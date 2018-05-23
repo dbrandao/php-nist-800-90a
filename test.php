@@ -33,8 +33,8 @@ $hmacTestFile = 'HMAC_DRBG.rsp';
 //$ctrTestFile = 'CTR_DRBG.rsp';
 
 // Test __getEntropy(...)
-$entropy = bin2hex(DRBG::__getEntropy(16));
-echo 'Entropy: 0x', $entropy, "\n";
+//$entropy = bin2hex(DRBG::__getEntropy(16));
+//echo 'Entropy: 0x', $entropy, "\n"; // OK, it works.
 
 // DRBG instances
 try {
