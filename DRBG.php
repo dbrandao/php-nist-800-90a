@@ -10,6 +10,15 @@ class DRBG {
     
     private $algo;
     
+    public static function __getEntropy($len) {
+        $entropy = openssl_random_pseudo_bytes($len, $strong);
+        if ($strong) {
+            return $entropy;
+        } else {
+            throw new Exception('No cryptographically strong algorithm is available.');
+        }
+    }
+    
     public function __construct($algo) {
         if ($algo == self::ALGO_HMAC) {
             $this->algo = self::ALGO_HMAC;
