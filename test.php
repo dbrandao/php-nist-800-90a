@@ -46,7 +46,7 @@ try {
     echo $hmacDrbg->generate(256, 256, 'nist 800-90a') . "\n";
     
     // Test HMAC_DRBG instance
-    testHmacDrbg($hmacDrbg, $testFileHome, $hmacTestFile);
+    //testHmacDrbg($hmacDrbg, $testFileHome, $hmacTestFile);
 
 } catch (Exception $e) {
     echo 'Caught exception: ', $e->getMessage(), "\n";
