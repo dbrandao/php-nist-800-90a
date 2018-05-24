@@ -8,15 +8,11 @@ function testHmacDrbg($drbg, $testFileHome, $testFile) {
         $testFileHome = $testFileHome . '/';
     }
     
-    // Debug
-    //echo 'Test file is at: ', $testFileHome . $testFile, "\n";
-    
     $handle = fopen($testFileHome . $testFile, 'rb');
     
     while ( ($line = fgets($handle, 4096)) !== false) {
         
-        // Debug
-        // echo $line; // OK, it works.
+        // TODO
     }
     
     if (!feof($handle)) {
@@ -30,20 +26,12 @@ $testFileHome = $argv[1];
 // Test files
 $hmacTestFile = 'HMAC_DRBG.rsp';
 
-// Test __getEntropyInput
-//$entropy = bin2hex(DRBG::__getEntropyInput(16));
-//echo 'Entropy: ', $entropy, "\n"; // OK, it works.
-
-// DRBG instantiation
 try {
-    // Test exception handling
-    //$hmacDrbg = new HMAC_DRBG(1024, ''); // OK, it works.
     
     // Instantiate HMAC_DRBG object
-    $hmacDrbg = new HMAC_DRBG();
+    $hmacDrbg = new HMAC_DRBG(TRUE, '4a8e0bd90bdb12f7748ad5f147b115d7385bb1b06aee7d8b76136a25d779bcb7', '7f3cce4af8c8ce3c45bdf23c6b181a00');
     
-    //
-    echo bin2hex($hmacDrbg->generate(1024)) . "\n\n";
+    $hmacDrbg->generate(1024);
     echo bin2hex($hmacDrbg->generate(1024)) . "\n";
     
     // Test HMAC_DRBG instance

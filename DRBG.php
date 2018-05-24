@@ -4,7 +4,8 @@ abstract class DRBG {
 
     const
         STRENGTH = 256,
-        MAX_BITS = 1024
+        MAXGEN = 10000,
+        MAXBIT = 1024
     ;
     
     public static function __getEntropyInput($len) {
@@ -16,8 +17,8 @@ abstract class DRBG {
         }
     }
     
-    public function __construct() {
-        $this->instantiate();
+    public function __construct($test=FALSE, $testEntropy=NULL, $testNonce=NULL) {
+        $this->instantiate($test, $testEntropy, $testNonce);
     }
     
     public function __destruct() {
@@ -30,15 +31,24 @@ abstract class DRBG {
     
     abstract protected function uninstantiateAlgorithm();
     
-    private function instantiate() {
+    private function instantiate($test=FALSE, $testEntropy=NULL, $testNonce=NULL) {
         
-        try {    
-            $entropy = hex2bin('79737479ba4e7642a221fcfd1b820b134e9e3540a35bb48ffae29c20f5418ea3');//self::__getEntropyInput(self::STRENGTH);
-            $nonce = hex2bin('3593259c092bef4129bc2c6c9e19f343');//self::__getEntropyInput(self::STRENGTH / 2);
-            $this->instantiateAlgorithm($entropy, $nonce);
-        } catch (Exception $e) {
-            echo 'Caught exception: ' . $e->getMessage();
+        if (!$test) {
+        
+            $entropy = self::__getEntropyInput(self::STRENGTH);
+            $nonce = self::__getEntropyInput(self::STRENGTH / 2);
+            
+        } else {
+        
+            if ($testEntropy == NULL or $testNonce == NULL) {
+                throw new Exception('Need entropy and nonce for test.');
+            }
+            
+            $entropy = hex2bin($testEntropy);
+            $nonce = hex2bin($testNonce);
         }
+        
+        $this->instantiateAlgorithm($entropy, $nonce);
     }
     
     private function uninstantiate() {
@@ -46,7 +56,7 @@ abstract class DRBG {
     }
     
     public function generate($requestedNumberOfBits) {
-        if ($requestedNumberOfBits > self::MAX_BITS) {
+        if ($requestedNumberOfBits > self::MAXBIT) {
             throw new Exception('Requested number of bits exceeds maximum supported.');
         }
         
@@ -65,8 +75,8 @@ abstract class DRBG {
 
 class HMAC_DRBG extends DRBG {
 
-    const                 
-        MAX_GEN = 10000
+    const
+        OUTLEN = 256
     ;
 
     private $V;
@@ -75,8 +85,8 @@ class HMAC_DRBG extends DRBG {
     
     protected function instantiateAlgorithm($entropy, $nonce) {
         $seed = $entropy . $nonce;
-        $this->K = str_repeat("\x00", 256 / 8);
-        $this->V = str_repeat("\x01", 256 / 8);
+        $this->K = str_repeat("\x00", self::OUTLEN / 8);
+        $this->V = str_repeat("\x01", self::OUTLEN / 8);
         $this->update($seed);
         $this->reseedCounter = 1;
     }
@@ -88,7 +98,7 @@ class HMAC_DRBG extends DRBG {
     }
     
     protected function generateAlgorithm($requestedNumberOfBits) {
-        if ($this->reseedCounter > self::MAX_GEN) {
+        if ($this->reseedCounter > self::MAXGEN) {
             return 'Instantiation can no longer be used.';
         }
         
@@ -102,8 +112,6 @@ class HMAC_DRBG extends DRBG {
         $genOutput = substr($temp, 0, ($requestedNumberOfBits / 8));
         
         $this->update('');
-        echo '#' . bin2hex($this->V) . "#\n";
-        echo '#' . bin2hex($this->K) . "#\n";
         
         $this->reseedCounter = $this->reseedCounter + 1;
         
