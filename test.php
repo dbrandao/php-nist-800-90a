@@ -43,8 +43,8 @@ try {
     $hmacDrbg = new HMAC_DRBG();
     
     //
-    echo bin2hex($hmacDrbg->generate(1024)) . "\n\n";
-    echo bin2hex($hmacDrbg->generate(1024)) . "\n";
+    echo bin2hex($hmacDrbg->generate(2048)) . "\n\n";
+    echo bin2hex($hmacDrbg->generate(2048)) . "\n";
     
     // Test HMAC_DRBG instance
     //testHmacDrbg($hmacDrbg, $testFileHome, $hmacTestFile);

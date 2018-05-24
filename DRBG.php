@@ -3,8 +3,10 @@
 abstract class DRBG {
 
     const
-        STRENGTH = 256,
-        MAX_BITS = 1024
+        STRENGTH = 256, // This implementation uses 256 bits strength
+        OUT_BLK_LEN = 512, // Output block length for SHA-512
+        MAX_GEN_BITS = 7500, // At most 7500 bit strings per call to generate
+        RESEED_INTERVAL = 10000 // At most 10k calls to generate before reseed
     ;
     
     public static function __getEntropyInput($len) {
@@ -33,8 +35,8 @@ abstract class DRBG {
     private function instantiate() {
         
         try {    
-            $entropy = hex2bin('79737479ba4e7642a221fcfd1b820b134e9e3540a35bb48ffae29c20f5418ea3');//self::__getEntropyInput(self::STRENGTH);
-            $nonce = hex2bin('3593259c092bef4129bc2c6c9e19f343');//self::__getEntropyInput(self::STRENGTH / 2);
+            $entropy = hex2bin(self::__getEntropyInput((int) 1.5 * self::STRENGTH);
+            $nonce = hex2bin(self::__getEntropyInput(self::STRENGTH / 2);
             $this->instantiateAlgorithm($entropy, $nonce);
         } catch (Exception $e) {
             echo 'Caught exception: ' . $e->getMessage();
@@ -46,7 +48,7 @@ abstract class DRBG {
     }
     
     public function generate($requestedNumberOfBits) {
-        if ($requestedNumberOfBits > self::MAX_BITS) {
+        if ($requestedNumberOfBits > self::MAX_GEN_BITS) {
             throw new Exception('Requested number of bits exceeds maximum supported.');
         }
         
@@ -65,18 +67,14 @@ abstract class DRBG {
 
 class HMAC_DRBG extends DRBG {
 
-    const                 
-        MAX_GEN = 10000
-    ;
-
     private $V;
     private $K;
     private $reseedCounter;
     
     protected function instantiateAlgorithm($entropy, $nonce) {
         $seed = $entropy . $nonce;
-        $this->K = str_repeat("\x00", 256 / 8);
-        $this->V = str_repeat("\x01", 256 / 8);
+        $this->K = str_repeat("\x00", self::OUT_BLK_LEN / 8);
+        $this->V = str_repeat("\x01", self::OUT_BLK_LEN / 8);
         $this->update($seed);
         $this->reseedCounter = 1;
     }
@@ -88,14 +86,14 @@ class HMAC_DRBG extends DRBG {
     }
     
     protected function generateAlgorithm($requestedNumberOfBits) {
-        if ($this->reseedCounter > self::MAX_GEN) {
+        if ($this->reseedCounter > self::RESEED_INTERVAL) {
             return 'Instantiation can no longer be used.';
         }
         
         $temp = '';
         
         while (strlen($temp) < $requestedNumberOfBits / 8) {
-            $this->V = hash_hmac('sha256', $this->V, $this->K, TRUE);
+            $this->V = hash_hmac('sha512', $this->V, $this->K, TRUE);
             $temp = $temp . $this->V;
         }
         
@@ -111,15 +109,15 @@ class HMAC_DRBG extends DRBG {
     }
     
     private function update($providedData) {
-        $this->K = hash_hmac('sha256', $this->V . "\x00" . $providedData, $this->K, TRUE);
-        $this->V = hash_hmac('sha256', $this->V, $this->K, TRUE);
+        $this->K = hash_hmac('sha512', $this->V . "\x00" . $providedData, $this->K, TRUE);
+        $this->V = hash_hmac('sha512', $this->V, $this->K, TRUE);
         
         if ($providedData == '') {
             return;
         }
         
-        $this->K = hash_hmac('sha256', $this->V . "\x01" . $providedData, $this->K, TRUE);
-        $this->V = hash_hmac('sha256', $this->V, $this->K, TRUE);
+        $this->K = hash_hmac('sha512', $this->V . "\x01" . $providedData, $this->K, TRUE);
+        $this->V = hash_hmac('sha512', $this->V, $this->K, TRUE);
     }
 
 }
