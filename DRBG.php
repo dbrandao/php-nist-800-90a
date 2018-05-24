@@ -3,14 +3,9 @@
 abstract class DRBG {
 
     const
-        MAX_SUPPORTED_STRENGTH = 256,
-        MAX_2_BASE = 2,
-        MAX_35_EXP = 35,
-        MAX_19_EXP = 19
+        STRENGTH = 256,
+        MAX_BITS = 1024
     ;
-    
-    protected $strength;
-    protected $reseedRequired;
     
     public static function __getEntropyInput($len) {
         $entropy = openssl_random_pseudo_bytes($len, $strong);
@@ -21,95 +16,48 @@ abstract class DRBG {
         }
     }
     
-    public function __construct($requestedStrength, $personalizationString) {
-        $this->instantiate($requestedStrength, $personalizationString);
+    public function __construct() {
+        $this->instantiate();
     }
     
-    abstract protected function instantiateAlgorithm($entropy, $nonce, $personalizationString, $strength);
+    public function __destruct() {
+        $this->uninstantiate();
+    }
     
-    abstract protected function reseedAlgorithm($entropy, $additionalInput);
+    abstract protected function instantiateAlgorithm($entropy, $nonce);
     
-    abstract protected function generateAlgorithm($requestedNumberOfBits, $additionalInput, &$reseedRequired);
+    abstract protected function generateAlgorithm($requestedNumberOfBits);
     
     abstract protected function uninstantiateAlgorithm();
     
-    private function instantiate($requestedStrength, $personalizationString) {
-    
-        try {
-            if ($requestedStrength > self::MAX_SUPPORTED_STRENGTH) {
-                throw new Exception('Requested strength exceeds maximum supported strength.');
-            }
-            
-            // PR is always used
-
-            if (strlen($personalizationString) * 8 > pow(self::MAX_2_BASE, self::MAX_35_EXP)) {
-                throw new Exception('Personalization string exceeds maximum length.');
-            }
-            
-            if ($requestedStrength <= 112) {
-                $this->strength = 112;
-            } else if ($requestedStrength <= 128) {
-                $this->strength = 128;
-            } else if ($requestedStrength <= 192) {
-                $this->strength = 192;
-            } else {
-                $this->strength = 256;
-            }
-            
-            $entropy = self::__getEntropyInput($this->strength);
-
-            $nonce = self::__getEntropyInput($this->strength / 2);
-            
-            $this->instantiateAlgorithm($entropy, $nonce, $personalizationString, $this->strength);
-            
+    private function instantiate() {
+        
+        try {    
+            $entropy = hex2bin('79737479ba4e7642a221fcfd1b820b134e9e3540a35bb48ffae29c20f5418ea3');//self::__getEntropyInput(self::STRENGTH);
+            $nonce = hex2bin('3593259c092bef4129bc2c6c9e19f343');//self::__getEntropyInput(self::STRENGTH / 2);
+            $this->instantiateAlgorithm($entropy, $nonce);
         } catch (Exception $e) {
-            echo 'Caught exception: ', $e->getMessage(), "\n";
+            echo 'Caught exception: ' . $e->getMessage();
         }
     }
     
     private function uninstantiate() {
-        $this->strength = NULL;
-        $this->reseedRequired = NULL;
+        $this->uninstantiateAlgorithm();
     }
     
-    public function reseed($additionalInput) {
-
-        try {
-        
-            if (strlen($additionalInput) * 8 > pow(self::MAX_2_BASE, self::MAX_35_EXP)) {
-                throw new Exception('Addidional input exceeds maximum length.');
-            }
-            
-            $entropy = self::__getEntropyInput($this->strength);
-            
-            $this->reseedAlgorithm($entropy, $additionalInput);
-            
-        } catch (Exception $e) {
-            echo 'Caught exception: ', $e->getMessage(), "\n";
-        }
-    }
-    
-    public function generate($requestedNumberOfBits, $strength, $additionalInput) {
-        if ($requestedNumberOfBits > pow(self::MAX_2_BASE, self::MAX_19_EXP)) {
+    public function generate($requestedNumberOfBits) {
+        if ($requestedNumberOfBits > self::MAX_BITS) {
             throw new Exception('Requested number of bits exceeds maximum supported.');
         }
         
-        if ($requestedNumberOfBits > $this->strength) {
-            throw new Exception('Requested strength exceeds instance strength.');
-        }
+        $genOutput = $this->generateAlgorithm($requestedNumberOfBits);
         
-        if (strlen($additionalInput) * 8 > pow(self::MAX_2_BASE, self::MAX_35_EXP)) {
-            throw new Exception('Addidional input exceeds maximum length.');
-        }
-        
-        $output = $this->generateAlgorithm($requestedNumberOfBits, $additionalInput, $reseedRequired);
-        
-        if ($reseedRequired) {
+        if ($genOutput == 'Instantiation can no longer be used.') {
             $this->uninstantiate();
-            $this->uninstantiateAlgorithm();
+            throw new Exception($genOutput);
+        } else {
+            return $genOutput;
         }
-        
-        return $output;
         
     }
 
@@ -117,29 +65,18 @@ abstract class DRBG {
 
 class HMAC_DRBG extends DRBG {
 
-    const
-        INIT_V = "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" .
-                "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" .
-                "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00" .
-                "\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00\x00",
-                    
-        INIT_K = "\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01" .
-                "\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01" .
-                "\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01" .
-                "\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01\x01",
-                
-        MAX_GEN_BEFORE_RESEED = 10000,
-        RESEED_REQUIRED = NULL
+    const                 
+        MAX_GEN = 10000
     ;
 
-    private $V; // secret, output
-    private $K; // secret, key
+    private $V;
+    private $K;
     private $reseedCounter;
     
-    protected function instantiateAlgorithm($entropy, $nonce, $personalizationString, $strength) {
-        $seed = $entropy . $nonce . $personalizationString;
-        $this->K = self::INIT_K;
-        $this->V = self::INIT_V;
+    protected function instantiateAlgorithm($entropy, $nonce) {
+        $seed = $entropy . $nonce;
+        $this->K = str_repeat("\x00", 256 / 8);
+        $this->V = str_repeat("\x01", 256 / 8);
         $this->update($seed);
         $this->reseedCounter = 1;
     }
@@ -150,48 +87,39 @@ class HMAC_DRBG extends DRBG {
         $this->reseedCounter = NULL;
     }
     
-    protected function generateAlgorithm($requestedNumberOfBits, $additionalInput, &$reseedRequired) {
-        if ($this->reseedCounter > self::MAX_GEN_BEFORE_RESEED) {
-            $this->reseedRequired = true;
-            return self::RESEED_REQUIRED;
-        }
-        
-        if ($additionalInput != '') {
-            $this->update($additionalInput);
+    protected function generateAlgorithm($requestedNumberOfBits) {
+        if ($this->reseedCounter > self::MAX_GEN) {
+            return 'Instantiation can no longer be used.';
         }
         
         $temp = '';
         
         while (strlen($temp) < $requestedNumberOfBits / 8) {
-            $this->V = hash_hmac('sha256', $this->V, $this->K);
+            $this->V = hash_hmac('sha256', $this->V, $this->K, TRUE);
             $temp = $temp . $this->V;
         }
         
-        $output = substr($temp, 0, $requestedNumberOfBits / 8);
+        $genOutput = substr($temp, 0, ($requestedNumberOfBits / 8));
         
-        $this->update($additionalInput);
+        $this->update('');
+        echo '#' . bin2hex($this->V) . "#\n";
+        echo '#' . bin2hex($this->K) . "#\n";
         
         $this->reseedCounter = $this->reseedCounter + 1;
         
-        return $output;
-    }
-    
-    protected function reseedAlgorithm($entropy, $additionalInput) {
-        $seed = $entropy . $additionalInput;
-        $this->K = $this->update($seed);
-        $reseedCounter = 1;
+        return $genOutput;
     }
     
     private function update($providedData) {
-        $this->K = hash_hmac('sha256', $this->V . 0x00 . $providedData, $this->K);
-        $this->V = hash_hmac('sha256', $this->V, $this->K);
+        $this->K = hash_hmac('sha256', $this->V . "\x00" . $providedData, $this->K, TRUE);
+        $this->V = hash_hmac('sha256', $this->V, $this->K, TRUE);
         
         if ($providedData == '') {
             return;
         }
         
-        $this->K = hash_hmac('sha256', $this->V . 0x01 . $providedData, $this->K);
-        $this->V = hash_hmac('sha256', $this->V, $this->K);
+        $this->K = hash_hmac('sha256', $this->V . "\x01" . $providedData, $this->K, TRUE);
+        $this->V = hash_hmac('sha256', $this->V, $this->K, TRUE);
     }
 
 }

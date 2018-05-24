@@ -40,10 +40,11 @@ try {
     //$hmacDrbg = new HMAC_DRBG(1024, ''); // OK, it works.
     
     // Instantiate HMAC_DRBG object
-    $hmacDrbg = new HMAC_DRBG(256, '');
+    $hmacDrbg = new HMAC_DRBG();
     
     //
-    echo $hmacDrbg->generate(256, 256, 'nist 800-90a') . "\n";
+    echo bin2hex($hmacDrbg->generate(1024)) . "\n\n";
+    echo bin2hex($hmacDrbg->generate(1024)) . "\n";
     
     // Test HMAC_DRBG instance
     //testHmacDrbg($hmacDrbg, $testFileHome, $hmacTestFile);
