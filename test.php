@@ -11,7 +11,7 @@ function testHmacDrbg($drbg, $testFileHome, $testFile) {
     $handle = fopen($testFileHome . $testFile, 'rb');
     
     while ( ($line = fgets($handle, 4096)) !== false) {
-        
+        //TODO
     }
     
     if (!feof($handle)) {

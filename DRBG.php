@@ -6,7 +6,7 @@ abstract class DRBG {
         STRENGTH = 256, // This implementation uses 256 bits strength
         OUT_BLK_LEN = 512, // Output block length for SHA-512
         MAX_GEN_BITS = 7500, // At most 7500 bit strings per call to generate
-        RESEED_INTERVAL = 10000 // At most 10k calls to generate before reseed
+        RESEED_INTERVAL = 20000 // At most 20k calls to generate before reseed
     ;
     
     public static function __getEntropyInput($len) {
