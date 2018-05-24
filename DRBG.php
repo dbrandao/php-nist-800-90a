@@ -100,8 +100,6 @@ class HMAC_DRBG extends DRBG {
         $genOutput = substr($temp, 0, ($requestedNumberOfBits / 8));
         
         $this->update('');
-        echo '#' . bin2hex($this->V) . "#\n";
-        echo '#' . bin2hex($this->K) . "#\n";
         
         $this->reseedCounter = $this->reseedCounter + 1;
         
