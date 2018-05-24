@@ -35,8 +35,8 @@ abstract class DRBG {
     private function instantiate() {
         
         try {    
-            $entropy = hex2bin(self::__getEntropyInput((int) 1.5 * self::STRENGTH);
-            $nonce = hex2bin(self::__getEntropyInput(self::STRENGTH / 2);
+            $entropy = self::__getEntropyInput((int) 1.5 * self::STRENGTH);
+            $nonce = self::__getEntropyInput(self::STRENGTH / 2);
             $this->instantiateAlgorithm($entropy, $nonce);
         } catch (Exception $e) {
             echo 'Caught exception: ' . $e->getMessage();
