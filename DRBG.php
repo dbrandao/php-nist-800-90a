@@ -7,7 +7,9 @@ abstract class DRBG {
         MAXGEN = 10000,
         MAXBIT = 1024
     ;
-    
+
+    protected $reseedRequired;
+
     public static function __getEntropyInput($len) {
         $entropy = openssl_random_pseudo_bytes($len, $strong);
         if ($strong) {
@@ -27,7 +29,9 @@ abstract class DRBG {
     
     abstract protected function instantiateAlgorithm($entropy, $nonce);
     
-    abstract protected function generateAlgorithm($requestedNumberOfBits);
+    abstract protected function reseedAlgorithm($entropy, $additionalInput);
+    
+    abstract protected function generateAlgorithm($requestedNumberOfBits, $additionalInput);
     
     abstract protected function uninstantiateAlgorithm();
     
@@ -49,18 +53,40 @@ abstract class DRBG {
         }
         
         $this->instantiateAlgorithm($entropy, $nonce);
+
+
     }
     
     private function uninstantiate() {
         $this->uninstantiateAlgorithm();
+    	$this->reseedRequired = NULL;
+    }
+
+    public function reseed($additionalInput) {
+	try {
+	    if (strlen($additionalInput) * 8 > pow(2,25)) {
+	    	throw new Exception('Additional input exceeds maximum length');
+	    }
+
+	    $entropy = self::__getEntropyInput(self::STRENGTH);
+
+	    //$this->reseedAlgorithm($entropy, $additionalInput);
+$this->reseedAlgorithm(hex2bin('01920a4e669ed3a85ae8a33b35a74ad7fb2a6bb4cf395ce00334a9c9a5a5d552'), $additionalInput);
+	} catch (Exception $e) {
+	    echo 'Caught exception: ', $e->getMessage(), "\n";
+	}
     }
     
-    public function generate($requestedNumberOfBits) {
+    public function generate($requestedNumberOfBits, $additionalInput) {
         if ($requestedNumberOfBits > self::MAXBIT) {
             throw new Exception('Requested number of bits exceeds maximum supported.');
         }
+
+	if ($additionalInput > pow(2,35)) {
+            throw new Exception('Additional input exceeds maximum length.');
+        }
         
-        $genOutput = $this->generateAlgorithm($requestedNumberOfBits);
+        $genOutput = $this->generateAlgorithm($requestedNumberOfBits, $additionalInput);
         
         if ($genOutput == 'Instantiation can no longer be used.') {
             $this->uninstantiate();
@@ -97,10 +123,14 @@ class HMAC_DRBG extends DRBG {
         $this->reseedCounter = NULL;
     }
     
-    protected function generateAlgorithm($requestedNumberOfBits) {
+    protected function generateAlgorithm($requestedNumberOfBits, $additionalInput) {
         if ($this->reseedCounter > self::MAXGEN) {
             return 'Instantiation can no longer be used.';
         }
+
+	if ($additionalInput != '') {
+	    $this->update($additionalInput);
+	}
         
         $temp = '';
         
@@ -111,11 +141,18 @@ class HMAC_DRBG extends DRBG {
         
         $genOutput = substr($temp, 0, ($requestedNumberOfBits / 8));
         
-        $this->update('');
+        $this->update($additionalInput);
         
         $this->reseedCounter = $this->reseedCounter + 1;
-        
+
         return $genOutput;
+    }
+
+    protected function reseedAlgorithm($entropy, $additionalInput) {
+    	$seed = $entropy . $additionalInput;
+	$this->update($seed);
+	$this->reseedCounter = 1;
+
     }
     
     private function update($providedData) {

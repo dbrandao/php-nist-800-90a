@@ -29,10 +29,11 @@ $hmacTestFile = 'HMAC_DRBG.rsp';
 try {
     
     // Instantiate HMAC_DRBG object
-    $hmacDrbg = new HMAC_DRBG(TRUE, '4a8e0bd90bdb12f7748ad5f147b115d7385bb1b06aee7d8b76136a25d779bcb7', '7f3cce4af8c8ce3c45bdf23c6b181a00');
-    
-    $hmacDrbg->generate(1024);
-    echo bin2hex($hmacDrbg->generate(1024)) . "\n";
+    $hmacDrbg = new HMAC_DRBG(TRUE, '06032cd5eed33f39265f49ecb142c511da9aff2af71203bffaf34a9ca5bd9c0d', '0e66f71edc43e42a45ad3c6fc6cdc4df');
+$hmacDrbg->reseed('');
+    $hmacDrbg->generate(1024, '');
+
+    echo bin2hex($hmacDrbg->generate(1024, '')) . "\n";
     
     // Test HMAC_DRBG instance
     //testHmacDrbg($hmacDrbg, $testFileHome, $hmacTestFile);
