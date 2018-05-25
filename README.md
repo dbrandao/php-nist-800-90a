@@ -2,7 +2,7 @@
 A NIST SP 800-90A Rev. 1-compliant session token generator for PHP applications
 
 ## Brief
-This is an OO PHP implementation of NIST SP 800-90A Rev. 1 (Recommendation for Random Number Generation Using Deterministic Random Bit Generators). Please refer to https://csrc.nist.gov/Projects/Random-Bit-Generation/publications.
+This is an OO PHP implementation of NIST SP 800-90A Rev. 1 (Recommendation for Random Number Generation Using Deterministic Random Bit Generators) suitable for generating session tokens. Please refer to https://csrc.nist.gov/Projects/Random-Bit-Generation/publications.
 
 The DRBG defined here is currently based on SHA-256 HMAC and supports 256 bits strength with maximum output length 7500 bits.
 
