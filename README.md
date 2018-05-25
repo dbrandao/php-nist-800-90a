@@ -1,4 +1,4 @@
-# php-nist-800-90a
+# php-nist-800-90a [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 A NIST SP 800-90A Rev. 1-compliant session token generator for PHP applications
 
 ## Brief
@@ -12,7 +12,7 @@ Entropy input is obtained using OpenSSL and usage depends on the availability of
 
 Use as defined in example.php:
 
-```
+```php
 try {
     $drbg = new HMAC_DRBG();
     echo bin2hex($drbg->generate(1024)); // 1024 pseudorandom bits
@@ -34,5 +34,5 @@ Please note that even though this implementation passes NIST CAVP tests and is F
 
 ## License
 
-This software is distributed under the MIT License.
+This software is distributed under the [MIT License](https://github.com/dudsan/php-nist-800-90a/blob/master/LICENSE).
 
