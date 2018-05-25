@@ -1,5 +1,5 @@
 # php-nist-800-90a [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
-A NIST SP 800-90A Rev. 1-compliant session token generator for PHP applications
+A NIST SP 800-90A Rev. 1-compliant deterministic random number generator written in PHP
 
 ## Brief
 This is an OO PHP implementation of NIST SP 800-90A Rev. 1 (Recommendation for Random Number Generation Using Deterministic Random Bit Generators) suitable for generating session tokens, amongst other applications. Please refer to https://csrc.nist.gov/Projects/Random-Bit-Generation/publications.
