@@ -5,7 +5,7 @@ abstract class DRBG {
     const
         STRENGTH = 256,
         MAXGEN = 10000,
-        MAXBIT = 1024
+        MAXBIT = 7500
     ;
     
     public static function __getEntropyInput($len) {

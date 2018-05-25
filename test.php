@@ -2,7 +2,7 @@
 
 require_once 'DRBG.php';
 
-function testHmacDrbg($drbg, $testFileHome, $testFile) {
+function testHmacDrbg($testFileHome, $testFile) {
 
     if (substr($testFileHome, -1) != '/') {
         $testFileHome = $testFileHome . '/';
@@ -10,10 +10,62 @@ function testHmacDrbg($drbg, $testFileHome, $testFile) {
     
     $handle = fopen($testFileHome . $testFile, 'rb');
     
-    while ( ($line = fgets($handle, 4096)) !== false) {
+    $countTest = 0;
+    $countPass = 0;
+    
+    while (fscanf($handle, "%s", $line)) {
+        if ($line == '[SHA-256]') {
         
-        // TODO
+            // Read SHA-256 DRBG parameters
+            fscanf($handle, "[PredictionResistance = %s]", $predictionResistance);
+            fscanf($handle, "[EntropyInputLen = %d]", $entropyInputLen);
+            fscanf($handle, "[NonceLen = %d]", $nonceLen);
+            fscanf($handle, "[PersonalizationStringLen = %d]", $personalizationStringLen);
+            fscanf($handle, "[AdditionalInputLen = %d]", $additionalInputLen);
+            fscanf($handle, "[ReturnedBitsLen = %d]", $returnedBitsLen);
+            $predictionResistance = !(trim(explode(']', $predictionResistance)[0]) == 'False');
+            
+            // Read DRBG test vectors 0-14
+            for ($i = 0; $i < 15; $i++) {
+
+                fscanf($handle, "%s");
+                fscanf($handle, "COUNT = %d", $count);
+                fscanf($handle, "EntropyInput = %s", $entropyInput);
+                fscanf($handle, "Nonce = %s", $nonce);
+                fscanf($handle, "PersonalizationString = %s", $personalizationString);
+                fscanf($handle, "AdditionalInput = %s", $additionalInput0);
+                fscanf($handle, "AdditionalInput = %s", $additionalInput1);
+                fscanf($handle, "ReturnedBits = %s", $returnedBits);
+                
+                $entropyInput = trim($entropyInput);
+                $nonce = trim($nonce);
+                $personalizationString = trim($personalizationString);
+                $additionalInput0 = trim($additionalInput0);
+                $additionalInput1 = trim($additionalInput1);
+                $returnedBits = trim($returnedBits);
+                
+                // Test restricted to no PR, no personalization string, no additional input for now
+                if ($predictionResistance == FALSE 
+                    and $personalizationStringLen == 0 
+                    and $additionalInputLen == 0) {
+
+                    $countTest = $countTest + 1;
+                    
+                    $hmacDrbg = new HMAC_DRBG(TRUE, $entropyInput, $nonce);
+                    $hmacDrbg->generate($returnedBitsLen);
+                    if ($hmacDrbg->generate($returnedBitsLen) == hex2bin($returnedBits)) {
+                        $countPass = $countPass + 1;
+                    }
+                }
+                
+            }
+            
+            fscanf($handle, "%s");
+            
+        }        
     }
+    
+    echo 'Passed ' . $countPass . '/' . $countTest . " test vectors.\n";
     
     if (!feof($handle)) {
         throw new Exception('Failed to parse test file.');
@@ -27,17 +79,11 @@ $testFileHome = $argv[1];
 $hmacTestFile = 'HMAC_DRBG.rsp';
 
 try {
-    
-    // Instantiate HMAC_DRBG object
-    $hmacDrbg = new HMAC_DRBG(TRUE, '4a8e0bd90bdb12f7748ad5f147b115d7385bb1b06aee7d8b76136a25d779bcb7', '7f3cce4af8c8ce3c45bdf23c6b181a00');
-    
-    $hmacDrbg->generate(1024);
-    echo bin2hex($hmacDrbg->generate(1024)) . "\n";
-    
-    // Test HMAC_DRBG instance
-    //testHmacDrbg($hmacDrbg, $testFileHome, $hmacTestFile);
+
+    testHmacDrbg($testFileHome, $hmacTestFile);
 
 } catch (Exception $e) {
+    
     echo 'Caught exception: ', $e->getMessage(), "\n";
 }
 
