@@ -133,10 +133,6 @@ class HMAC_DRBG extends DRBG {
         $this->V = str_repeat("\x01", self::OUTLEN / 8);
         $this->update($seed);
         $this->reseedCounter = 1;
-
-echo "Instantiate\n";
-echo bin2hex($this->K) . "\n";
-echo bin2hex($this->V) . "\n";
     }
     
     protected function uninstantiateAlgorithm() {
@@ -166,9 +162,7 @@ echo bin2hex($this->V) . "\n";
         $this->update($additionalInput);
         
         $this->reseedCounter = $this->reseedCounter + 1;
-echo "Generate\n";
-echo bin2hex($this->K) . "\n";
-echo bin2hex($this->V) . "\n";
+
         return $genOutput;
     }
 
@@ -176,9 +170,6 @@ echo bin2hex($this->V) . "\n";
     	$seed = $entropy . $additionalInput;
 	$this->update($seed);
 	$this->reseedCounter = 1;
-echo "Reseed\n";
-echo bin2hex($this->K) . "\n";
-echo bin2hex($this->V) . "\n";
     }
     
     private function update($providedData) {
