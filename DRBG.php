@@ -19,15 +19,15 @@ abstract class DRBG {
         }
     }
     
-    public function __construct($test=FALSE, $testEntropy=NULL, $testNonce=NULL) {
-        $this->instantiate($test, $testEntropy, $testNonce);
+    public function __construct($test=FALSE, $testEntropy=NULL, $testNonce=NULL, $testPredictionResistanceFlag=FALSE, $testPersonalizationString=NULL) {
+        $this->instantiate($test, $testEntropy, $testNonce, $testPredictionResistanceFlag, $testPersonalizationString);
     }
     
     public function __destruct() {
         $this->uninstantiate();
     }
     
-    abstract protected function instantiateAlgorithm($entropy, $nonce);
+    abstract protected function instantiateAlgorithm($entropy, $nonce, $personalizationString);
     
     abstract protected function reseedAlgorithm($entropy, $additionalInput);
     
@@ -35,15 +35,15 @@ abstract class DRBG {
     
     abstract protected function uninstantiateAlgorithm();
     
-    private function instantiate($test=FALSE, $testEntropy=NULL, $testNonce=NULL) {
-        
+    private function instantiate($test=FALSE, $testEntropy=NULL, $testNonce=NULL, $testPredictionResistanceFlag=FALSE, $testPersonalizationString='') {
+
         if (!$test) {
         
             $entropy = self::__getEntropyInput(self::STRENGTH);
             $nonce = self::__getEntropyInput(self::STRENGTH / 2);
             
         } else {
-        
+
             if ($testEntropy == NULL or $testNonce == NULL) {
                 throw new Exception('Need entropy and nonce for test.');
             }
@@ -51,8 +51,15 @@ abstract class DRBG {
             $entropy = hex2bin($testEntropy);
             $nonce = hex2bin($testNonce);
         }
-        
-        $this->instantiateAlgorithm($entropy, $nonce);
+
+	$predictResistanceFlag = $testPredictionResistanceFlag;
+	$personalizationString = hex2bin($testPersonalizationString);
+
+	if (strlen($personalizationString) * 8 > pow(2,35)) {
+            throw new Exception('Personalization String exceeds maximum length.');
+        }
+
+        $this->instantiateAlgorithm($entropy, $nonce, $personalizationString);
 
 
     }
@@ -62,39 +69,50 @@ abstract class DRBG {
     	$this->reseedRequired = NULL;
     }
 
-    public function reseed($additionalInput) {
+    public function reseed($additionalInput, $testEntropy=NULL) {
 	try {
-	    if (strlen($additionalInput) * 8 > pow(2,25)) {
+	    if (strlen($additionalInput) * 8 > pow(2,35)) {
 	    	throw new Exception('Additional input exceeds maximum length');
 	    }
 
-	    $entropy = self::__getEntropyInput(self::STRENGTH);
+	    if($testEntropy == NULL) {
+	        $entropy = self::__getEntropyInput(self::STRENGTH);
+	    } else {
+		$entropy = hex2bin($testEntropy);
+	    }
 
-	    //$this->reseedAlgorithm($entropy, $additionalInput);
-$this->reseedAlgorithm(hex2bin('01920a4e669ed3a85ae8a33b35a74ad7fb2a6bb4cf395ce00334a9c9a5a5d552'), $additionalInput);
+	    $this->reseedAlgorithm($entropy, $additionalInput);
+
 	} catch (Exception $e) {
 	    echo 'Caught exception: ', $e->getMessage(), "\n";
 	}
     }
     
-    public function generate($requestedNumberOfBits, $additionalInput) {
+    public function generate($requestedNumberOfBits, $additionalInput=NULL, $predictionResistanceFlag=FALSE, $testEntropyPredictionResistence=NULL) {
         if ($requestedNumberOfBits > self::MAXBIT) {
             throw new Exception('Requested number of bits exceeds maximum supported.');
         }
 
-	if ($additionalInput > pow(2,35)) {
+	if (strlen($additionalInput) * 8 > pow(2,35)) {
             throw new Exception('Additional input exceeds maximum length.');
         }
-        
+
+	if ($predictionResistanceFlag == TRUE) {
+	    $this->reseed($additionalInput, $testEntropyPredictionResistence);
+	    $additionalInput = '';
+	}
+
         $genOutput = $this->generateAlgorithm($requestedNumberOfBits, $additionalInput);
         
         if ($genOutput == 'Instantiation can no longer be used.') {
-            $this->uninstantiate();
-            throw new Exception($genOutput);
-        } else {
-            return $genOutput;
+	    $this->reseed($additionalInput);
+	    $additionalInput = '';
+	    $genOutput = $this->generateAlgorithm($requestedNumberOfBits, $additionalInput);
+	    //$this->uninstantiate();
+            //throw new Exception($genOutput);
         }
-        
+
+        return $genOutput;
     }
 
 }
@@ -109,12 +127,16 @@ class HMAC_DRBG extends DRBG {
     private $K;
     private $reseedCounter;
     
-    protected function instantiateAlgorithm($entropy, $nonce) {
-        $seed = $entropy . $nonce;
+    protected function instantiateAlgorithm($entropy, $nonce, $personalizationString) {
+        $seed = $entropy . $nonce . $personalizationString;
         $this->K = str_repeat("\x00", self::OUTLEN / 8);
         $this->V = str_repeat("\x01", self::OUTLEN / 8);
         $this->update($seed);
         $this->reseedCounter = 1;
+
+echo "Instantiate\n";
+echo bin2hex($this->K) . "\n";
+echo bin2hex($this->V) . "\n";
     }
     
     protected function uninstantiateAlgorithm() {
@@ -144,7 +166,9 @@ class HMAC_DRBG extends DRBG {
         $this->update($additionalInput);
         
         $this->reseedCounter = $this->reseedCounter + 1;
-
+echo "Generate\n";
+echo bin2hex($this->K) . "\n";
+echo bin2hex($this->V) . "\n";
         return $genOutput;
     }
 
@@ -152,7 +176,9 @@ class HMAC_DRBG extends DRBG {
     	$seed = $entropy . $additionalInput;
 	$this->update($seed);
 	$this->reseedCounter = 1;
-
+echo "Reseed\n";
+echo bin2hex($this->K) . "\n";
+echo bin2hex($this->V) . "\n";
     }
     
     private function update($providedData) {
