@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Authors:
+ * Eduardo Vasconcelos, esmev@protonmail.ch
+ * Diogo Brandão, dbrdem@hotmail.com
+ */
+
 require_once 'DRBG.php';
 
 const

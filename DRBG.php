@@ -1,5 +1,11 @@
 <?php
 
+/**
+ * Authors:
+ * Eduardo Vasconcelos, esmev@protonmail.ch
+ * Diogo Brandão, dbrdem@hotmail.com
+ */
+
 abstract class DRBG {
 
     const
@@ -63,7 +69,7 @@ abstract class DRBG {
         $this->uninstantiateAlgorithm();
     }
     
-    public function reseed($additionalInput, $testEntropy=NULL) {
+    public function reseed($additionalInput=NULL, $testEntropy=NULL) {
         
         if (strlen($additionalInput) * 4 > self::MAXAINPUT) {
             throw new Exception('Additional input exceeds maximum length');
@@ -121,9 +127,6 @@ class HMAC_DRBG extends DRBG {
         $this->update($seed);
         $this->reseedCounter = 1;
         
-//        echo bin2hex($this->V) . "\n";
-//        echo bin2hex($this->K) . "\n\n";
-        
     }
     
     protected function uninstantiateAlgorithm() {
@@ -153,9 +156,6 @@ class HMAC_DRBG extends DRBG {
         $this->update($additionalInput);
         
         $this->reseedCounter = $this->reseedCounter + 1;
-        
-//        echo bin2hex($this->V) . "\n";
-//        echo bin2hex($this->K) . "\n\n";
         
         return $genOutput;
     }
