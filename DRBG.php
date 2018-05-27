@@ -5,7 +5,9 @@ abstract class DRBG {
     const
         STRENGTH = 256,
         MAXGEN = 10000,
-        MAXBIT = 7500
+        MAXBIT = 7500,
+        MAXPSTR = 256,
+        MAXAINPUT = 256
     ;
     
     public static function __getEntropyInput($len) {
@@ -17,21 +19,23 @@ abstract class DRBG {
         }
     }
     
-    public function __construct($test=FALSE, $testEntropy=NULL, $testNonce=NULL) {
-        $this->instantiate($test, $testEntropy, $testNonce);
+    public function __construct($predictionResistanceFlag=TRUE, $personalizationString=NULL, $test=FALSE, $testEntropy=NULL, $testNonce=NULL) {
+        $this->instantiate($predictionResistanceFlag, $personalizationString, $test, $testEntropy, $testNonce);
     }
     
     public function __destruct() {
         $this->uninstantiate();
     }
     
-    abstract protected function instantiateAlgorithm($entropy, $nonce);
+    abstract protected function instantiateAlgorithm($entropy, $nonce, $personalizationString);
     
-    abstract protected function generateAlgorithm($requestedNumberOfBits);
+    abstract protected function reseedAlgorithm($entropy, $additionalInput);
+    
+    abstract protected function generateAlgorithm($requestedNumberOfBits, $additionalInput);
     
     abstract protected function uninstantiateAlgorithm();
     
-    private function instantiate($test=FALSE, $testEntropy=NULL, $testNonce=NULL) {
+    private function instantiate($predictionResistanceFlag, $personalizationString, $test, $testEntropy, $testNonce) {
         
         if (!$test) {
         
@@ -48,29 +52,56 @@ abstract class DRBG {
             $nonce = hex2bin($testNonce);
         }
         
-        $this->instantiateAlgorithm($entropy, $nonce);
+        if (strlen($personalizationString) * 4 > self::MAXPSTR) {
+            throw new Exception('Personalization string exceeds maximum length.');
+        }
+        
+        $this->instantiateAlgorithm($entropy, $nonce, hex2bin($personalizationString));
     }
     
     private function uninstantiate() {
         $this->uninstantiateAlgorithm();
     }
     
-    public function generate($requestedNumberOfBits) {
+    public function reseed($additionalInput, $testEntropy=NULL) {
+        
+        if (strlen($additionalInput) * 4 > self::MAXAINPUT) {
+            throw new Exception('Additional input exceeds maximum length');
+        }
+        
+        if($testEntropy == NULL) {
+            $entropy = self::__getEntropyInput(self::STRENGTH);
+        } else {
+            $entropy = hex2bin($testEntropy);
+        }
+        
+        $this->reseedAlgorithm($entropy, hex2bin($additionalInput));
+    }
+    
+    public function generate($requestedNumberOfBits, $additionalInput=NULL, $predictionResistanceFlag=FALSE, $testEntropyPredictionResistance=NULL) {
         if ($requestedNumberOfBits > self::MAXBIT) {
             throw new Exception('Requested number of bits exceeds maximum supported.');
         }
         
-        $genOutput = $this->generateAlgorithm($requestedNumberOfBits);
-        
-        if ($genOutput == 'Instantiation can no longer be used.') {
-            $this->uninstantiate();
-            throw new Exception($genOutput);
-        } else {
-            return $genOutput;
+        if (strlen($additionalInput) * 4 > self::MAXAINPUT) {
+            throw new Exception('Additional input exceeds maximum length');
         }
         
+        if ($predictionResistanceFlag == TRUE) {
+            $this->reseed($additionalInput, $testEntropyPredictionResistance);
+            $additionalInput = NULL;
+        }
+        
+        $genOutput = $this->generateAlgorithm($requestedNumberOfBits, hex2bin($additionalInput));
+        
+        if ($genOutput == 'Instantiation can no longer be used.') {
+            $this->reseed($additionalInput);
+            $additionalInput = NULL;
+            $genOutput = $this->generateAlgorithm($requestedNumberOfBits, $additionalInput);
+        }
+        
+        return $genOutput;
     }
-
 }
 
 class HMAC_DRBG extends DRBG {
@@ -83,12 +114,16 @@ class HMAC_DRBG extends DRBG {
     private $K;
     private $reseedCounter;
     
-    protected function instantiateAlgorithm($entropy, $nonce) {
-        $seed = $entropy . $nonce;
+    protected function instantiateAlgorithm($entropy, $nonce, $personalizationString) {
+        $seed = $entropy . $nonce . $personalizationString;
         $this->K = str_repeat("\x00", self::OUTLEN / 8);
         $this->V = str_repeat("\x01", self::OUTLEN / 8);
         $this->update($seed);
         $this->reseedCounter = 1;
+        
+//        echo bin2hex($this->V) . "\n";
+//        echo bin2hex($this->K) . "\n\n";
+        
     }
     
     protected function uninstantiateAlgorithm() {
@@ -97,9 +132,13 @@ class HMAC_DRBG extends DRBG {
         $this->reseedCounter = NULL;
     }
     
-    protected function generateAlgorithm($requestedNumberOfBits) {
+    protected function generateAlgorithm($requestedNumberOfBits, $additionalInput) {
         if ($this->reseedCounter > self::MAXGEN) {
             return 'Instantiation can no longer be used.';
+        }
+        
+        if ($additionalInput != NULL) {
+            $this->update($additionalInput);
         }
         
         $temp = '';
@@ -111,18 +150,27 @@ class HMAC_DRBG extends DRBG {
         
         $genOutput = substr($temp, 0, ($requestedNumberOfBits / 8));
         
-        $this->update('');
+        $this->update($additionalInput);
         
         $this->reseedCounter = $this->reseedCounter + 1;
         
+//        echo bin2hex($this->V) . "\n";
+//        echo bin2hex($this->K) . "\n\n";
+        
         return $genOutput;
+    }
+    
+    protected function reseedAlgorithm($entropy, $additionalInput) {
+        $seed = $entropy . $additionalInput;
+        $this->update($seed);
+        $this->reseedCounter = 1;
     }
     
     private function update($providedData) {
         $this->K = hash_hmac('sha256', $this->V . "\x00" . $providedData, $this->K, TRUE);
         $this->V = hash_hmac('sha256', $this->V, $this->K, TRUE);
         
-        if ($providedData == '') {
+        if ($providedData == NULL) {
             return;
         }
         

@@ -39,25 +39,30 @@ function testHmacDrbg($testFileHome, $testFile) {
                 
                 $entropyInput = trim($entropyInput);
                 $nonce = trim($nonce);
-                $personalizationString = trim($personalizationString);
-                $additionalInput0 = trim($additionalInput0);
-                $additionalInput1 = trim($additionalInput1);
+                if ($personalizationStringLen == 0) {
+                    $personalizationString = NULL;
+                } else {
+                    $personalizationString = trim($personalizationString);
+                }
+                if ($additionalInputLen == 0) {
+                    $additionalInput0 = NULL;
+                    $additionalInput1 = NULL;
+                } else {
+                    $additionalInput0 = trim($additionalInput0);
+                    $additionalInput1 = trim($additionalInput1);
+                }
                 $returnedBits = trim($returnedBits);
                 
-                // Test restricted to no PR, no personalization string, no additional input for now
-                if ($predictionResistance == FALSE 
-                    and $personalizationStringLen == 0 
-                    and $additionalInputLen == 0) {
-
-                    $countTest = $countTest + 1;
-                    
-                    $hmacDrbg = new HMAC_DRBG(TRUE, $entropyInput, $nonce);
-                    $hmacDrbg->generate($returnedBitsLen);
-                    if ($hmacDrbg->generate($returnedBitsLen) == hex2bin($returnedBits)) {
-                        $countPass = $countPass + 1;
-                    }
+                $countTest = $countTest + 1;
+                   
+                $hmacDrbg = new HMAC_DRBG($predictionResistance, $personalizationString, TRUE, $entropyInput, $nonce);
+                $hmacDrbg->generate($returnedBitsLen, $additionalInput0, $predictionResistance);
+                if ($hmacDrbg->generate($returnedBitsLen, $additionalInput1, $predictionResistance) == hex2bin($returnedBits)) {
+                    $countPass = $countPass + 1;
+                } else {
+                    echo 'Test #' . $countTest . ' expected: ' . $returnedBits . "\n\n";
+                    throw new Exception('Failed test.'); 
                 }
-                
             }
             
             fscanf($handle, "%s");
